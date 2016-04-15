@@ -30,11 +30,11 @@ RELEASE_LEVELS_DISPLAY = {ALPHA: ALPHA,
 # properly comparable using normal operarors, for example:
 #  (6,1,0,'beta',0) < (6,1,0,'candidate',1) < (6,1,0,'candidate',2)
 #  (6,1,0,'candidate',2) < (6,1,0,'final',0) < (6,1,2,'final',0)
-version_info = (8, 'saas~6', 0, FINAL, 0)
+version_info = (8, 6, 0, FINAL, 0)
 version = '.'.join(map(str, version_info[:2])) + RELEASE_LEVELS_DISPLAY[version_info[3]] + str(version_info[4] or '')
 series = serie = major_version = '.'.join(map(str, version_info[:2]))
 
-product_name = 'Odoo'
+product_name = 'Odoo - OpusVL'
 description = 'Odoo Server'
 long_desc = '''Odoo is a complete ERP and CRM. The main features are accounting (analytic
 and financial), stock management, sales and purchases management, tasks
@@ -46,9 +46,9 @@ classifiers = """Development Status :: 5 - Production/Stable
 License :: OSI Approved :: GNU Affero General Public License v3
 Programming Language :: Python
 """
-url = 'https://www.odoo.com'
-author = 'OpenERP S.A.'
-author_email = 'info@odoo.com'
+url = 'http://opusvl.com'
+author = 'OpenERP S.A., OpusVL'
+author_email = 'community@opusvl.com'
 license = 'AGPL-3'
 
 nt_service_name = "odoo-server-" + series
