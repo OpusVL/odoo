@@ -953,11 +953,6 @@ instance.web.Menu =  instance.web.Widget.extend({
         });
         $more.append($toplevel_items.filter(':hidden').show());
         $more_container.toggle(!!$more.children().length);
-        // Hide toplevel item if there is only one
-        var $toplevel = self.$el.children("li:visible");
-        if ($toplevel.length === 1) {
-            $toplevel.hide();
-        }
     },
     /**
      * Opens a given menu by id, as if a user had browsed to that menu by hand
