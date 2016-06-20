@@ -3402,6 +3402,8 @@ class BaseModel(object):
                         ', '.join(map(repr, extras._ids)),
                     ))
             # store an access error exception in existing records
+            _logger.info("Access denied due to security restrictions reading from database.  model: %(modname)s ids: %(ids)r, operation: %(op)s"
+                    % dict(modname=self._name, ids=missing, op='read'))
             exc = AccessError(
                 _('The requested operation cannot be completed due to security restrictions. Please contact your system administrator.\n\n(Document type: %s, Operation: %s)') % \
                 (self._name, 'read')
