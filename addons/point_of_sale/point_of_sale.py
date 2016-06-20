@@ -20,6 +20,7 @@
 ##############################################################################
 
 import logging
+import psycopg2
 import time
 from datetime import datetime
 import uuid
@@ -691,6 +692,9 @@ class pos_order(osv.osv):
 
             try:
                 self.signal_workflow(cr, uid, [order_id], 'paid')
+            except psycopg2.OperationalError:
+                # do not hide transactional errors, the order(s) won't be saved!
+                raise
             except Exception as e:
                 _logger.error('Could not fully process the POS Order: %s', tools.ustr(e))
 
@@ -1542,7 +1546,7 @@ class product_template(osv.osv):
         product_ctx = dict(context or {}, active_test=False)
         if self.search_count(cr, uid, [('id', 'in', ids), ('available_in_pos', '=', True)], context=product_ctx):
             if self.pool['pos.session'].search_count(cr, uid, [('state', '!=', 'closed')], context=context):
-                raise osv.except_osv(_('Error!'),
+                raise UserError(
                     _('You cannot delete a product saleable in point of sale while a session is still opened.'))
         return super(product_template, self).unlink(cr, uid, ids, context=context)
 

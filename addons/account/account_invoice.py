@@ -628,9 +628,9 @@ class account_invoice(models.Model):
         line_ids = self.move_line_id_payment_get()
         if not line_ids:
             return False
-        query = "SELECT reconcile_id FROM account_move_line WHERE id IN %s"
+        query = "SELECT count(*) FROM account_move_line WHERE reconcile_id IS NULL AND id IN %s"
         self._cr.execute(query, (tuple(line_ids),))
-        return all(row[0] for row in self._cr.fetchall())
+        return self._cr.fetchone()[0] == 0
 
     @api.multi
     def button_reset_taxes(self):
@@ -1297,7 +1297,7 @@ class account_invoice_line(models.Model):
         default=0.0)
     invoice_line_tax_id = fields.Many2many('account.tax',
         'account_invoice_line_tax', 'invoice_line_id', 'tax_id',
-        string='Taxes', domain=[('parent_id', '=', False)])
+        string='Taxes', domain=[('parent_id', '=', False), '|', ('active', '=', False), ('active', '=', True)])
     account_analytic_id = fields.Many2one('account.analytic.account',
         string='Analytic Account')
     company_id = fields.Many2one('res.company', string='Company',
@@ -1492,6 +1492,19 @@ class account_invoice_line(models.Model):
             if 'invoice_line_tax_id' in product_change_result.get('value', {}):
                 unique_tax_ids = product_change_result['value']['invoice_line_tax_id']
         return {'value': {'invoice_line_tax_id': unique_tax_ids}}
+
+    @api.multi
+    def _set_additional_fields(self, invoice_type):
+        # Do not forwardport
+        """ Some modules, such as Purchase, provide a feature to add automatically pre-filled
+            invoice lines. However, these modules might not be aware of extra fields which are
+            added by extensions of the accounting module.
+            This method is intended to be overridden by these extensions, so that any new field can
+            easily be auto-filled as well.
+            :param invoice : account.invoice corresponding record
+            :rtype line : account.invoice.line record
+        """
+        pass
 
 
 class account_invoice_tax(models.Model):

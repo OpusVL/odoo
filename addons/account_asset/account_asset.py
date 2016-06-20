@@ -160,7 +160,7 @@ class AccountAssetAsset(models.Model):
     def compute_depreciation_board(self):
         self.ensure_one()
 
-        posted_depreciation_line_ids = self.depreciation_line_ids.filtered(lambda x: x.move_check)
+        posted_depreciation_line_ids = self.depreciation_line_ids.filtered(lambda x: x.move_check).sorted(key=lambda l: l.depreciation_date, reverse=True)
         unposted_depreciation_line_ids = self.depreciation_line_ids.filtered(lambda x: not x.move_check)
 
         # Remove old unposted depreciation lines. We cannot use unlink() with One2many field
@@ -228,7 +228,7 @@ class AccountAssetAsset(models.Model):
         self.write({'state': 'draft'})
 
     @api.one
-    @api.depends('value', 'salvage_value', 'depreciation_line_ids')
+    @api.depends('value', 'salvage_value', 'depreciation_line_ids.move_check', 'depreciation_line_ids.amount')
     def _amount_residual(self):
         total_amount = 0.0
         for line in self.depreciation_line_ids:
@@ -347,7 +347,7 @@ class AccountAssetDepreciationLine(models.Model):
     @api.multi
     def create_move(self):
         created_move_ids = []
-        asset_ids = []
+        asset_ids = set()
         for line in self:
             depreciation_date = self.env.context.get('depreciation_date') or line.depreciation_date or fields.Date.context_today(self)
             periods = self.env['account.period'].find(depreciation_date)
@@ -404,7 +404,7 @@ class AccountAssetDepreciationLine(models.Model):
             })
             line.write({'move_id': move.id, 'move_check': True})
             created_move_ids.append(move.id)
-            asset_ids.append(line.asset_id)
+            asset_ids.add(line.asset_id)
             partner_name = line.asset_id.partner_id.name
             currency_name = line.asset_id.currency_id.name
 
