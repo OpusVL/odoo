@@ -314,7 +314,7 @@ class mail_thread(osv.AbstractModel):
 
     _columns = {
         'message_is_follower': fields.function(_get_followers, type='boolean',
-            fnct_search=_search_is_follower, string='Is a Follower', multi='_get_followers,'),
+            fnct_search=_search_is_follower, string='Is a Follower', multi='_get_followers'),
         'message_follower_ids': fields.function(_get_followers, fnct_inv=_set_followers,
             fnct_search=_search_followers, type='many2many', priority=-10,
             obj='res.partner', string='Followers', multi='_get_followers'),
