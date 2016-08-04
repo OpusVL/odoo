@@ -414,7 +414,8 @@ class PaymentTransaction(osv.Model):
 
         's2s_cb_eval': fields.char('S2S Callback', help="""\
             Will be safe_eval with `self` being the current transaction. i.e.:
-                self.env['my.model'].payment_validated(self)"""),
+                self.env['my.model'].payment_validated(self)""",
+                                   groups="base.group_system"),
     }
 
     def _check_reference(self, cr, uid, ids, context=None):
