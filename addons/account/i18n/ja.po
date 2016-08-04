@@ -11,7 +11,7 @@ msgstr ""
 "Project-Id-Version: Odoo 8.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2015-10-15 06:40+0000\n"
-"PO-Revision-Date: 2016-06-09 00:13+0000\n"
+"PO-Revision-Date: 2016-07-30 06:07+0000\n"
 "Last-Translator: Martin Trigaux\n"
 "Language-Team: Japanese (http://www.transifex.com/odoo/odoo-8/language/ja/)\n"
 "MIME-Version: 1.0\n"
@@ -2133,7 +2133,7 @@ msgstr "選択請求書を取消"
 #. module: account
 #: view:account.bank.statement:account.view_bank_statement_form
 msgid "Cancel Statement"
-msgstr ""
+msgstr "取引明細書を取消"
 
 #. module: account
 #: model:ir.model,name:account.model_account_invoice_cancel
@@ -2708,7 +2708,7 @@ msgstr "コメント: "
 #: field:account.invoice,commercial_partner_id:0
 #: help:account.invoice.report,commercial_partner_id:0
 msgid "Commercial Entity"
-msgstr ""
+msgstr "取引先"
 
 #. module: account
 #: model:ir.actions.act_window,name:account.action_account_common_menu
@@ -3518,7 +3518,7 @@ msgstr "曜日"
 #: help:account.bank.statement,message_last_post:0
 #: help:account.invoice,message_last_post:0
 msgid "Date of the last message posted on the record."
-msgstr ""
+msgstr "記録上の最後のメッセージが投稿された日"
 
 #. module: account
 #: help:res.partner,last_reconciliation_date:0
@@ -5988,7 +5988,7 @@ msgstr "前回の期末残高"
 #: field:account.bank.statement,message_last_post:0
 #: field:account.invoice,message_last_post:0
 msgid "Last Message Date"
-msgstr ""
+msgstr "最終メッセージ日"
 
 #. module: account
 #: field:account.account,write_uid:0
@@ -6887,7 +6887,7 @@ msgstr "仕訳帳を開く"
 #: code:addons/account/static/src/xml/account_bank_statement_reconciliation.xml:195
 #, python-format
 msgid "Open balance"
-msgstr ""
+msgstr "期首残高"
 
 #. module: account
 #: view:account.move.bank.reconcile:account.view_account_move_bank_reconcile
@@ -7183,7 +7183,7 @@ msgstr "取引先元帳"
 #. module: account
 #: field:account.bank.statement.line,partner_name:0
 msgid "Partner Name"
-msgstr ""
+msgstr "取引先名"
 
 #. module: account
 #: selection:account.model.line,date_maturity:0
@@ -8965,7 +8965,7 @@ msgstr ""
 #. module: account
 #: field:account.config.settings,date_start:0
 msgid "Start date"
-msgstr ""
+msgstr "開始日"
 
 #. module: account
 #: field:account.period,date_start:0
@@ -10454,7 +10454,7 @@ msgstr "借方合計"
 #. module: account
 #: field:res.partner,total_invoiced:0
 msgid "Total Invoiced"
-msgstr ""
+msgstr "請求額合計"
 
 #. module: account
 #: field:res.partner,debit:0

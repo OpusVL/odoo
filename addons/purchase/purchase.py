@@ -319,7 +319,7 @@ class purchase_order(osv.osv):
         'picking_type_id': fields.many2one('stock.picking.type', 'Deliver To', help="This will determine picking type of incoming shipment", required=True,
                                            states={'confirmed': [('readonly', True)], 'approved': [('readonly', True)], 'done': [('readonly', True)]}),
         'related_location_id': fields.related('picking_type_id', 'default_location_dest_id', type='many2one', relation='stock.location', string="Related location", store=True),
-        'related_usage': fields.related('location_id', 'usage', type='char'),
+        'related_usage': fields.related('location_id', 'usage', type='char', readonly=True),
         'shipment_count': fields.function(_count_all, type='integer', string='Incoming Shipments', multi=True),
         'invoice_count': fields.function(_count_all, type='integer', string='Invoices', multi=True),
         'group_id': fields.many2one('procurement.group', string="Procurement Group"),
@@ -376,7 +376,8 @@ class purchase_order(osv.osv):
                     cr, uid, line.id, po.pricelist_id.id, line.product_id.id, line.product_qty,
                     line.product_uom.id, po.partner_id.id, date_order=po.date_order, context=context
                 )
-                line.write({'date_planned': vals['value']['date_planned']})
+                if vals.get('value', {}).get('date_planned'):
+                    line.write({'date_planned': vals['value']['date_planned']})
         return new_id
 
     def set_order_line_status(self, cr, uid, ids, status, context=None):
@@ -424,6 +425,13 @@ class purchase_order(osv.osv):
                 value.update({'location_id': picktype.default_location_dest_id.id, 'related_usage': picktype.default_location_dest_id.usage})
             value.update({'related_location_id': picktype.default_location_dest_id.id})
         return {'value': value}
+
+    def onchange_location_id(self, cr, uid, ids, location_id, context=None):
+        value = {'related_usage': False}
+        if location_id:
+            value['related_usage'] = self.pool['stock.location'].browse(cr, uid, location_id, context=context).usage
+        return {'value': value}
+
 
     def onchange_partner_id(self, cr, uid, ids, partner_id, context=None):
         partner = self.pool.get('res.partner')
@@ -769,7 +777,7 @@ class purchase_order(osv.osv):
             price_unit = self.pool.get('res.currency').compute(cr, uid, order.currency_id.id, order.company_id.currency_id.id, price_unit, round=False, context=context)
         res = []
         if order.location_id.usage == 'customer':
-            name = order_line.product_id.with_context(dict(context or {}, lang=order.dest_address_id.lang)).name
+            name = order_line.product_id.with_context(dict(context or {}, lang=order.dest_address_id.lang)).display_name
         else:
             name = order_line.name or ''
         move_template = {
@@ -1461,7 +1469,7 @@ class procurement_order(osv.osv):
             qty[procurement.product_id.id] = uom_obj._compute_qty(cr, uid, procurement.product_uom.id, procurement.product_qty, uom_id)
             if seller_qty:
                 qty[procurement.product_id.id] = max(qty[procurement.product_id.id], seller_qty)
-            prices_qty += [(procurement.product_id, qty[procurement.product_id.id], partner)]
+            prices_qty += [(procurement.product_id, qty[procurement.product_id.id], partner.id)]
         prices = pricelist_obj.price_get_multi(cr, uid, [pricelist_id], prices_qty, context=context)
 
         #Passing partner_id to context for purchase order line integrity of Line name
@@ -1484,6 +1492,8 @@ class procurement_order(osv.osv):
                 name += '\n' + procurement.product_id.description_purchase
             price = prices[procurement.product_id.id][pricelist_id]
             price = uom_obj._compute_price(cr, uid, procurement.product_uom.id, price, to_uom_id=procurement.product_id.product_tmpl_id.uom_po_id.id)
+            if not schedule_date:
+                schedule_date = self._get_purchase_schedule_date(cr, uid, procurement, procurement.company_id, context=context)
 
             values = {
                 'name': name,
@@ -1648,7 +1658,7 @@ class procurement_order(osv.osv):
             # Create lines for which no line exists yet
             if procs_to_create:
                 partner = po.partner_id
-                schedule_date = datetime.strptime(po.minimum_planned_date, DEFAULT_SERVER_DATETIME_FORMAT)
+                schedule_date = po.minimum_planned_date and datetime.strptime(po.minimum_planned_date, DEFAULT_SERVER_DATETIME_FORMAT)
                 value_lines = self._get_po_line_values_from_procs(cr, uid, procs_to_create, partner, schedule_date, context=context)
                 line_values += [(0, 0, value_lines[x]) for x in value_lines.keys()]
                 for proc in procs_to_create:

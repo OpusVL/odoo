@@ -20,7 +20,7 @@
 #
 ##############################################################################
 from datetime import datetime, timedelta
-from openerp.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT, DATETIME_FORMATS_MAP, float_compare
+from openerp.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT, DATETIME_FORMATS_MAP, float_compare, float_is_zero
 from openerp.osv import fields, osv
 from openerp.tools.safe_eval import safe_eval as eval
 from openerp.tools.translate import _
@@ -110,6 +110,12 @@ class sale_order(osv.osv):
         'picking_policy': 'direct',
         'order_policy': 'manual',
     }
+
+    #FORWARDPORT UP TO SAAS-6
+    def _get_customer_lead(self, cr, uid, product_tmpl_id):
+        super(sale_order, self)._get_customer_lead(cr, uid, product_tmpl_id)
+        return product_tmpl_id.sale_delay
+
     def onchange_warehouse_id(self, cr, uid, ids, warehouse_id, context=None):
         val = {}
         if warehouse_id:
@@ -262,11 +268,12 @@ class sale_order_line(osv.osv):
                 qty_pack = pack.qty
                 type_ul = pack.ul
                 if not warning_msgs:
-                    warn_msg = _("You selected a quantity of %d Units.\n"
+                    uom_obj = product_uom_obj.browse(cr, uid, uom, context=context)
+                    warn_msg = _("You selected a quantity of %s %s.\n"
                                 "But it's not compatible with the selected packaging.\n"
                                 "Here is a proposition of quantities according to the packaging:\n"
                                 "Barcode: %s Quantity: %s Type of ul: %s") % \
-                                    (qty, barcode, qty_pack, type_ul.name)
+                                    (qty, uom_obj.name, barcode, qty_pack, type_ul.name)
                     warning_msgs += _("Picking Information ! : ") + warn_msg + "\n\n"
                 warning = {
                        'title': _('Configuration Error!'),
@@ -418,10 +425,14 @@ class stock_move(osv.osv):
             res['account_analytic_id'] = sale_line.order_id.project_id and sale_line.order_id.project_id.id or False
             res['discount'] = sale_line.discount
             if move.product_id.id != sale_line.product_id.id:
-                res['price_unit'] = self.pool['product.pricelist'].price_get(
-                    cr, uid, [sale_line.order_id.pricelist_id.id],
-                    move.product_id.id, move.product_uom_qty or 1.0,
-                    sale_line.order_id.partner_id, context=context)[sale_line.order_id.pricelist_id.id]
+                precision = self.pool.get('decimal.precision').precision_get(cr, uid, 'Discount')
+                if float_is_zero(sale_line.discount, precision_digits=precision):
+                    res['price_unit'] = self.pool['product.pricelist'].price_get(
+                        cr, uid, [sale_line.order_id.pricelist_id.id],
+                        move.product_id.id, move.product_uom_qty or 1.0,
+                        sale_line.order_id.partner_id, context=context)[sale_line.order_id.pricelist_id.id]
+                else:
+                    res['price_unit'] = move.product_id.lst_price
             else:
                 res['price_unit'] = sale_line.price_unit
             uos_coeff = move.product_uom_qty and move.product_uos_qty / move.product_uom_qty or 1.0
@@ -481,9 +492,25 @@ class stock_picking(osv.osv):
                 if sale_ids:
                     res[picking.id] = sale_ids[0]
         return res
-    
+
+    def _search_sale_id(self, cr, uid, obj, name, args, context=None):
+        res = []
+        sale_obj = self.pool.get("sale.order")
+        for field, operator, value in args:
+            assert field == name
+            if all([isinstance(v, int) for v in value]):
+                so_ids = sale_obj.search(cr, uid, [('id', operator, value)], context=context)
+            else:
+                so_ids = sale_obj.search(cr, uid, [('name', operator, value)], context=context)
+            so = sale_obj.browse(cr, uid, so_ids, context=context)
+            group_ids = so.mapped('procurement_group_id').ids
+            res_ids = self.search(cr, uid, [('group_id', 'in', group_ids)], context=context)
+            res.append(('id', 'in', res_ids))
+        return res
+
+
     _columns = {
-        'sale_id': fields.function(_get_sale_id, type="many2one", relation="sale.order", string="Sale Order"),
+        'sale_id': fields.function(_get_sale_id, type="many2one", relation="sale.order", string="Sale Order", fnct_search=_search_sale_id),
     }
 
     def _create_invoice_from_picking(self, cr, uid, picking, vals, context=None):
