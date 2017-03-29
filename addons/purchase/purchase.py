@@ -74,7 +74,6 @@ class purchase_order(osv.osv):
                     ('order_id', '=', po.id), '|', ('date_planned', '=', po.minimum_planned_date), ('date_planned', '<', value)
                 ], context=context)
                 pol_obj.write(cr, uid, pol_ids, {'date_planned': value}, context=context)
-        self.invalidate_cache(cr, uid, context=context)
         return True
 
     def _minimum_planned_date(self, cr, uid, ids, field_name, arg, context=None):
@@ -1483,7 +1482,7 @@ class procurement_order(osv.osv):
             taxes_ids = procurement.product_id.supplier_taxes_id
             taxes_ids = taxes_ids.filtered(lambda x: x.company_id.id == procurement.company_id.id)
             # It is necessary to have the appropriate fiscal position to get the right tax mapping
-            fp = acc_pos_obj.get_fiscal_position(cr, uid, None, partner.id, context=dict(context, company_id=procurement.company_id.id))
+            fp = acc_pos_obj.get_fiscal_position(cr, uid, procurement.company_id.id, partner.id, context=context)
             if fp:
                 fp = acc_pos_obj.browse(cr, uid, fp, context=context)
             taxes = acc_pos_obj.map_tax(cr, uid, fp, taxes_ids, context=context)
@@ -1634,26 +1633,18 @@ class procurement_order(osv.osv):
             for proc in procurements:
                 if po_prod_dict.get(proc.product_id.id):
                     po_line = po_prod_dict[proc.product_id.id]
-                    # FIXME: compute quantity using `_calc_new_qty_price` method.
-                    # new_qty, new_price = self._calc_new_qty_price(cr, uid, proc, po_line=po_line, context=context)
-                    uom_id = po_line.product_uom  # Convert to UoM of existing line
-                    qty = uom_obj._compute_qty_obj(cr, uid, proc.product_uom, proc.product_qty, uom_id)
-
                     if lines_to_update.get(po_line):
-                        lines_to_update[po_line] += [(proc.id, qty)]
+                        lines_to_update[po_line] += [proc]
                     else:
-                        lines_to_update[po_line] = [(proc.id, qty)]
+                        lines_to_update[po_line] = [proc]
                 else:
                     procs_to_create.append(proc)
 
-            procs = []
             # Update the quantities of the lines that need to
             for line in lines_to_update.keys():
-                tot_qty = 0
-                for proc, qty in lines_to_update[line]:
-                    tot_qty += qty
-                    self.message_post(cr, uid, proc, body=_("Quantity added in existing Purchase Order Line"), context=context)
-                line_values += [(1, line.id, {'product_qty': line.product_qty + tot_qty, 'procurement_ids': [(4, x[0]) for x in lines_to_update[line]]})]
+                for proc in lines_to_update[line]:
+                    self.message_post(cr, uid, proc.id, body=_("Quantity added in existing Purchase Order Line"), context=context)
+                line_values += [(1, line.id, {'procurement_ids': [(4, x[0].id) for x in lines_to_update[line]]})]
 
             # Create lines for which no line exists yet
             if procs_to_create:
@@ -1664,6 +1655,21 @@ class procurement_order(osv.osv):
                 for proc in procs_to_create:
                     self.message_post(cr, uid, [proc.id], body=_("Purchase line created and linked to an existing Purchase Order"), context=context)
             po_obj.write(cr, uid, [add_purchase], {'order_line': line_values},context=context)
+
+            # FIXME: partial fix of forward-port fe92dea. Ideally, we should use the method
+            # '_calc_new_qty_price'. However, this method was written for v8, where the PO line
+            # update was sequential, not in batch as it is now.
+            # DO NOT FORWARD PORT
+            for line, new_procs in lines_to_update.iteritems():
+                qty = 0.0
+                for proc in line.procurement_ids:
+                    if proc in new_procs or proc.state == 'running':
+                        qty += uom_obj._compute_qty(cr, uid,
+                            proc.product_uom.id, proc.product_qty, proc.product_id.uom_id.id, round=False)
+
+                new_qty = uom_obj._compute_qty(cr, uid, line.product_id.uom_id.id, qty, line.product_uom.id)
+                if new_qty > line.product_qty:
+                    line.write({'product_qty': new_qty})
 
             for procurement in procurements:
                 self.update_origin_po(cr, uid, po, procurement, context=context)
@@ -1689,7 +1695,7 @@ class procurement_order(osv.osv):
             name = seq_obj.next_by_code(cr, uid, 'purchase.order', context=context) or _('PO: %s') % procurement.name
             gpo = procurement.rule_id.group_propagation_option
             group = (gpo == 'fixed' and procurement.rule_id.group_id.id) or (gpo == 'propagate' and procurement.group_id.id) or False
-            fp = acc_pos_obj.get_fiscal_position(cr, uid, None, partner.id, context=dict(context or {}, company_id=procurement.company_id.id))
+            fp = acc_pos_obj.get_fiscal_position(cr, uid, procurement.company_id.id, partner.id, context=context)
             po_vals = {
                 'name': name,
                 'origin': procurement.origin,

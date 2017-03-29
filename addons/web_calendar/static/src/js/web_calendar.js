@@ -300,7 +300,7 @@ openerp.web_calendar = function(instance) {
                     self.proxy('update_record')(event._id, data);
                 },
                 eventRender: function (event, element, view) {
-                    element.find('.fc-event-title').html(event.title);
+                    element.find('.fc-event-title').html(event.title + event.attendee_avatars);
                 },
                 eventAfterRender: function (event, element, view) {
                     if ((view.name !== 'month') && (((event.end-event.start)/60000)<=30)) {
@@ -592,7 +592,6 @@ openerp.web_calendar = function(instance) {
                     if (attendee_other.length>2) {
                         the_title_avatar += '<span class="attendee_head" title="' + attendee_other.slice(0, -2) + '">+</span>';
                     }
-                    the_title = the_title_avatar + the_title;
                 }
             }
             
@@ -604,6 +603,7 @@ openerp.web_calendar = function(instance) {
                 'start': moment(date_start).format('YYYY-MM-DD HH:mm:ss'),
                 'end': moment(date_stop).format('YYYY-MM-DD HH:mm:ss'),
                 'title': the_title,
+                'attendee_avatars': the_title_avatar,
                 'allDay': (this.fields[this.date_start].type == 'date' || (this.all_day && evt[this.all_day]) || false),
                 'id': evt.id,
                 'attendees':attendees
@@ -961,13 +961,7 @@ openerp.web_calendar = function(instance) {
             this.$input = $();
         },
         get_title: function () {
-            var parent = this.getParent();
-            if (_.isUndefined(parent)) {
-                return _t("Create");
-            }
-            var title = (_.isUndefined(parent.field_widget)) ?
-                    (parent.string || parent.name) :
-                    parent.field_widget.string || parent.field_widget.name || '';
+            var title = (this.options.action)? this.options.action.name : '';
             return _t("Create: ") + title;
         },
         start: function () {
