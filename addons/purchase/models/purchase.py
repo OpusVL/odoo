@@ -1025,6 +1025,15 @@ class ProcurementOrder(models.Model):
             domain += (('group_id', '=', group.id),)
         return domain
 
+    def _make_po_merge_line(self, po_line):
+        """Return whether to merge the current procurement into given existing purchase order line.
+
+        self: The procurement
+        po_line: The purchase.order.line object in question
+        """
+        self.ensure_one()
+        return po_line.product_id == self.product_id and po_line.product_uom == self.product_id.uom_po_id
+
     @api.multi
     def make_po(self):
         cache = {}
@@ -1071,7 +1080,7 @@ class ProcurementOrder(models.Model):
             # Create Line
             po_line = False
             for line in po.order_line:
-                if line.product_id == procurement.product_id and line.product_uom == procurement.product_id.uom_po_id:
+                if procurement._make_po_merge_line(line):
                     procurement_uom_po_qty = procurement.product_uom._compute_quantity(procurement.product_qty, procurement.product_id.uom_po_id)
                     seller = procurement.product_id._select_seller(
                         partner_id=partner,
